@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pick the Stick — Detroit Tigers</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff; --bg2: #f5f5f3; --bg3: #eeede9;
+      --text: #1a1a18; --text2: #6b6b67; --text3: #9a9a96;
+      --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+      --radius: 8px; --radius-lg: 12px;
+      --tigers: #FA4616; --tigers-dark: #c93710;
+      --green-bg: #EAF3DE; --green-text: #27500A;
+      --red-bg: #FCEBEB; --red-text: #791F1F;
+      --gold: #BA7517;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+        --text: #f0efe9; --text2: #a8a8a3; --text3: #6b6b67;
+        --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+        --green-bg: #173404; --green-text: #C0DD97;
+        --red-bg: #501313; --red-text: #F7C1C1;
+      }
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; }
+
+    /* AUTH SCREEN */
+    .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .auth-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; width: 100%; max-width: 380px; }
+    .auth-header { text-align: center; margin-bottom: 1.75rem; }
+    .auth-icon { width: 52px; height: 52px; background: var(--tigers); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; margin: 0 auto 1rem; box-shadow: 0 2px 10px rgba(250,70,22,0.3); }
+    .auth-header h1 { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+    .auth-header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+    .auth-tabs { display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1.5rem; }
+    .auth-tab { flex: 1; padding: 9px; font-size: 13px; font-weight: 500; text-align: center; cursor: pointer; border: none; background: transparent; color: var(--text2); }
+    .auth-tab.active { background: var(--tigers); color: white; }
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .field input { width: 100%; padding: 10px 13px; font-size: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); outline: none; }
+    .field input:focus { border-color: var(--tigers); box-shadow: 0 0 0 3px rgba(250,70,22,0.12); }
+    .auth-error { background: var(--red-bg); color: var(--red-text); border-radius: var(--radius); padding: 9px 13px; font-size: 13px; margin-bottom: 1rem; display: none; }
+
+    /* MAIN APP */
+    .app { max-width: 720px; margin: 0 auto; padding: 1.5rem 1rem 4rem; display: none; }
+    .header { display: flex; align-items: center; gap: 14px; margin-bottom: 1.75rem; }
+    .tiger-icon { width: 44px; height: 44px; background: var(--tigers); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(250,70,22,0.3); }
+    .header-text { flex: 1; }
+    .header-text h1 { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+    .header-text p { font-size: 13px; color: var(--text2); margin-top: 1px; }
+    .logout-btn { font-size: 12px; color: var(--text2); background: none; border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+    .logout-btn:hover { background: var(--bg2); }
+    .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; }
+    .tab { padding: 9px 16px; font-size: 13px; font-weight: 500; color: var(--text2); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--tigers); border-bottom-color: var(--tigers); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .section-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; }
+    .game-banner { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .game-matchup { font-size: 15px; font-weight: 600; color: var(--text); }
+    .game-status { font-size: 12px; color: var(--text2); margin-top: 3px; }
+    .game-status.live { color: #3B6D11; font-weight: 600; }
+    .info-banner { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 1.5rem; font-size: 13px; color: var(--text2); }
+    .info-banner.locked { color: var(--text2); }
+    .info-banner.open { color: #27500A; background: var(--green-bg); border-color: rgba(0,0,0,0.06); }
+    .player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 1.5rem; }
+    .player-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 13px; cursor: pointer; transition: border-color 0.12s; }
+    .player-card:hover { border-color: var(--border2); }
+    .player-card.selected { border: 2px solid var(--tigers); box-shadow: 0 0 0 3px rgba(250,70,22,0.1); }
+    .player-card.locked { cursor: default; opacity: 0.45; pointer-events: none; }
+    .player-card.locked.selected { opacity: 1; border: 2px solid var(--border2); box-shadow: none; }
+    .player-card .pname { font-size: 13px; font-weight: 600; color: var(--text); }
+    .player-card .ppos { font-size: 11px; color: var(--text2); margin-top: 2px; }
+    .my-pick-display { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; }
+    .my-pick-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; }
+    .my-pick-name { font-size: 17px; font-weight: 700; color: var(--tigers); margin-top: 3px; }
+    .my-pick-name.none { color: var(--text3); font-weight: 400; font-size: 14px; }
+    .inline-btns { display: flex; gap: 8px; margin-top: 1.25rem; flex-wrap: wrap; }
+    .btn { padding: 9px 18px; font-size: 13px; font-weight: 500; border: 1px solid var(--border2); border-radius: var(--radius); background: transparent; cursor: pointer; color: var(--text); transition: background 0.1s; }
+    .btn:hover { background: var(--bg2); }
+    .btn-primary { background: var(--tigers); color: white; border-color: var(--tigers); }
+    .btn-primary:hover { background: var(--tigers-dark); border-color: var(--tigers-dark); }
+    .btn-sm { padding: 6px 13px; font-size: 12px; }
+    .btn:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+    .stat-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .stat-table th { font-size: 11px; font-weight: 600; color: var(--text3); text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+    .stat-table th:first-child { text-align: left; }
+    .stat-table td { padding: 8px; text-align: right; color: var(--text); border-bottom: 1px solid var(--border); }
+    .stat-table td:first-child { text-align: left; font-weight: 500; }
+    .stat-table tr:last-child td { border-bottom: none; }
+    .stat-table tr.picked-row td { background: rgba(250,70,22,0.05); }
+    .pts-badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .pts-pos { background: var(--green-bg); color: var(--green-text); }
+    .pts-neg { background: var(--red-bg); color: var(--red-text); }
+    .pts-zero { background: var(--bg2); color: var(--text3); }
+    .lb-row { display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 8px; }
+    .lb-row.is-me { border-color: var(--tigers); box-shadow: 0 0 0 2px rgba(250,70,22,0.1); }
+    .lb-rank { font-size: 20px; min-width: 32px; }
+    .lb-name { flex: 1; font-size: 15px; font-weight: 600; color: var(--text); }
+    .lb-name .you { font-size: 11px; font-weight: 500; color: var(--tigers); margin-left: 6px; }
+    .lb-pick { font-size: 12px; color: var(--text2); margin-top: 2px; }
+    .lb-pts { font-size: 18px; font-weight: 700; color: var(--text); }
+    .lb-pts span { font-size: 12px; font-weight: 400; color: var(--text2); }
+    .scoring-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1.25rem; }
+    .score-row { display: flex; justify-content: space-between; padding: 7px 13px; background: var(--bg2); border-radius: var(--radius); font-size: 13px; }
+    .score-label { color: var(--text2); }
+    .score-val { font-weight: 600; }
+    .score-val.pos { color: var(--green-text); }
+    .score-val.neg { color: var(--red-text); }
+    .score-val.special { color: var(--gold); }
+    .loading { text-align: center; padding: 2.5rem; font-size: 13px; color: var(--text2); }
+    .error-msg { background: var(--red-bg); color: var(--red-text); border-radius: var(--radius); padding: 11px 15px; font-size: 13px; margin-bottom: 1rem; }
+    .success-msg { background: var(--green-bg); color: var(--green-text); border-radius: var(--radius); padding: 11px 15px; font-size: 13px; font-weight: 500; margin-bottom: 1rem; }
+    .empty-msg { text-align: center; padding: 2rem; font-size: 13px; color: var(--text2); }
+    .overflow-x { overflow-x: auto; }
+    .toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); border-radius: var(--radius); padding: 10px 20px; font-size: 13px; font-weight: 500; opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 999; white-space: nowrap; }
+    .toast.show { opacity: 1; }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (max-width: 480px) {
+      .scoring-grid { grid-template-columns: 1fr; }
+      .player-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+    }
+
+    .cl-entry { display: flex; gap: 14px; margin-bottom: 0; position: relative; }
+    .cl-entry:not(:last-child) .cl-dot::after { content: ''; position: absolute; left: 6px; top: 14px; bottom: -8px; width: 1px; background: var(--border); }
+    .cl-dot { width: 13px; height: 13px; border-radius: 50%; background: var(--border2); flex-shrink: 0; margin-top: 3px; position: relative; }
+    .cl-dot.new { background: var(--tigers); box-shadow: 0 0 0 3px rgba(250,70,22,0.15); }
+    .cl-dot.origin { background: var(--gold); }
+    .cl-body { padding-bottom: 1.5rem; flex: 1; }
+    .cl-date { font-size: 11px; color: var(--text3); font-weight: 500; margin-bottom: 3px; }
+    .cl-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .cl-desc { font-size: 13px; color: var(--text2); line-height: 1.6; }
+  </style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div class="auth-wrap" id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-icon">🐯</div>
+      <h1>Pick the stick</h1>
+      <p>2026 Detroit Tigers — Fieger Law Edition</p>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="showAuthTab('login')">Log in</button>
+      <button class="auth-tab" onclick="showAuthTab('signup')">Create account</button>
+    </div>
+    <div id="auth-error" class="auth-error"></div>
+    <div class="field">
+      <label>Username</label>
+      <input type="text" id="auth-username" placeholder="e.g. tigersfan42" autocomplete="username" onkeydown="if(event.key==='Enter')submitAuth()" />
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')submitAuth()" />
+    </div>
+    <button class="btn btn-primary" id="auth-btn" onclick="submitAuth()" style="width:100%;justify-content:center;">Log in</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app" id="main-app">
+  <div class="header">
+    <div class="tiger-icon">🐯</div>
+    <div class="header-text">
+      <h1>Pick the stick</h1>
+      <p id="header-date"></p>
+    </div>
+    <button class="logout-btn" onclick="logout()">Log out</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('picks',this)">My pick</button>
+    <button class="tab" onclick="switchTab('allpicks',this)">All picks</button>
+    <button class="tab" onclick="switchTab('stats',this)">Game stats</button>
+    <button class="tab" onclick="switchTab('leaderboard',this)">Leaderboard</button>
+    <button class="tab" onclick="switchTab('rules',this)">Rules</button>
+    <button class="tab" onclick="switchTab('changelog',this)">Updates</button>
+  </div>
+
+  <!-- MY PICK -->
+  <div id="panel-picks" class="panel active">
+    <div id="game-banner-picks"></div>
+    <div id="pick-status-banner"></div>
+    <div class="my-pick-display">
+      <div>
+        <div class="my-pick-label">Your pick today</div>
+        <div class="my-pick-name none" id="my-pick-display">No pick yet</div>
+      </div>
+      <div id="pick-lock-badge"></div>
+    </div>
+    <div class="section-label">Choose your Tigers player</div>
+    <div id="player-grid" class="player-grid"><div class="loading">Loading Tigers roster...</div></div>
+    <div class="inline-btns" id="pick-save-row">
+      <button class="btn btn-primary" id="save-pick-btn" onclick="saveMyPick()">Save my pick</button>
+    </div>
+  </div>
+
+  <!-- ALL PICKS -->
+  <div id="panel-allpicks" class="panel">
+    <div class="section-label" style="margin-bottom:12px">Today's picks</div>
+    <div id="all-picks-list"></div>
+  </div>
+
+  <!-- STATS -->
+  <div id="panel-stats" class="panel">
+    <div id="game-banner-stats"></div>
+    <div id="stats-content"><div class="loading">Loading game data from MLB...</div></div>
+    <div class="inline-btns" id="stats-actions" style="display:none">
+      <button class="btn btn-primary" onclick="applyStats()">Apply stats to scores</button>
+      <button class="btn" onclick="renderStatsPanel()">Refresh</button>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div id="panel-leaderboard" class="panel">
+    <div class="section-label" style="margin-bottom:12px">Season standings</div>
+    <div id="lb-list"></div>
+  </div>
+
+  <!-- RULES -->
+  <div id="panel-rules" class="panel">
+    <div class="section-label">Offense</div>
+    <div class="scoring-grid">
+      <div class="score-row"><span class="score-label">Single</span><span class="score-val pos">+1 pt</span></div>
+      <div class="score-row"><span class="score-label">Double</span><span class="score-val pos">+2 pts</span></div>
+      <div class="score-row"><span class="score-label">Triple</span><span class="score-val pos">+3 pts</span></div>
+      <div class="score-row"><span class="score-label">Home run</span><span class="score-val pos">+4 pts</span></div>
+      <div class="score-row"><span class="score-label">Run scored</span><span class="score-val pos">+1 pt</span></div>
+      <div class="score-row"><span class="score-label">RBI</span><span class="score-val pos">+1 pt</span></div>
+      <div class="score-row"><span class="score-label">Walk (1B equiv)</span><span class="score-val pos">+1 pt</span></div>
+      <div class="score-row"><span class="score-label">Stolen base</span><span class="score-val pos">+1 pt</span></div>
+    </div>
+    <div class="section-label" style="margin-top:1.25rem">Starting pitcher</div>
+    <div class="scoring-grid">
+      <div class="score-row"><span class="score-label">5+ innings pitched</span><span class="score-val pos">+2 pts</span></div>
+      <div class="score-row"><span class="score-label">Each extra inning</span><span class="score-val pos">+1 pt</span></div>
+      <div class="score-row"><span class="score-label">Strikeouts after 5th</span><span class="score-val pos">+1 pt</span></div>
+    </div>
+    <div class="section-label" style="margin-top:1.25rem">Penalties</div>
+    <div class="scoring-grid">
+      <div class="score-row"><span class="score-label">Strikeout (batter)</span><span class="score-val neg">−1 pt</span></div>
+      <div class="score-row"><span class="score-label">Fielding error</span><span class="score-val neg">−1 pt</span></div>
+      <div class="score-row"><span class="score-label">Ground into DP</span><span class="score-val neg">−2 pts</span></div>
+    </div>
+    <div class="section-label" style="margin-top:1.25rem">Special rule</div>
+    <div class="score-row"><span class="score-label">Not in starting lineup</span><span class="score-val special">Points ×2</span></div>
+    <div style="margin-top:1.25rem; padding:11px 14px; background:var(--bg2); border-radius:var(--radius); font-size:13px; color:var(--text2);">
+      🔒 Picks lock automatically when the game starts. You can change your pick freely until first pitch.
+    </div>
+  </div>
+
+  <!-- CHANGELOG -->
+  <div id="panel-changelog" class="panel">
+    <div class="section-label" style="margin-bottom:1.25rem">Feature log</div>
+    <div class="cl-entry">
+      <div class="cl-dot new"></div>
+      <div class="cl-body">
+        <div class="cl-date">April 16, 2026</div>
+        <div class="cl-title">Rain delay &amp; game status locking</div>
+        <div class="cl-desc">Picks now lock during rain delays, suspensions, warmups, and pre-game — not just when the game is live. The lock banner also shows the specific reason (e.g. "game is delayed") instead of a generic message.</div>
+      </div>
+    </div>
+    <div class="cl-entry">
+      <div class="cl-dot"></div>
+      <div class="cl-body">
+        <div class="cl-date">April 16, 2026</div>
+        <div class="cl-title">User accounts &amp; login</div>
+        <div class="cl-desc">Each player now has their own account with a username and password. Picks are tied to your account — you can only make a pick for yourself. Other players' picks are hidden until the game starts so nobody can copy anyone.</div>
+      </div>
+    </div>
+    <div class="cl-entry">
+      <div class="cl-dot"></div>
+      <div class="cl-body">
+        <div class="cl-date">April 16, 2026</div>
+        <div class="cl-title">Game-time pick locking</div>
+        <div class="cl-desc">Picks are now editable right up until first pitch. No more manual "lock" button — the app detects when the game starts via the MLB API and freezes picks automatically.</div>
+      </div>
+    </div>
+    <div class="cl-entry">
+      <div class="cl-dot"></div>
+      <div class="cl-body">
+        <div class="cl-date">April 16, 2026</div>
+        <div class="cl-title">Shared database via Supabase</div>
+        <div class="cl-desc">All picks, scores, and accounts are now stored in a shared database. Everyone in the league sees the same leaderboard and picks in real time from any device.</div>
+      </div>
+    </div>
+    <div class="cl-entry">
+      <div class="cl-dot"></div>
+      <div class="cl-body">
+        <div class="cl-date">April 16, 2026</div>
+        <div class="cl-title">Live MLB stats integration</div>
+        <div class="cl-desc">No more manual stat entry. The app pulls live boxscore data directly from the official MLB Stats API after each game — hits, doubles, triples, home runs, RBIs, runs, walks, stolen bases, strikeouts, and pitching stats are all automatic.</div>
+      </div>
+    </div>
+    <div class="cl-entry">
+      <div class="cl-dot"></div>
+      <div class="cl-body">
+        <div class="cl-date">April 16, 2026</div>
+        <div class="cl-title">Deployed to the web</div>
+        <div class="cl-desc">Pick the Stick is now a live website hosted on Netlify. Share the link with your friends to play from any device — no install required.</div>
+      </div>
+    </div>
+    <div class="cl-entry">
+      <div class="cl-dot"></div>
+      <div class="cl-body">
+        <div class="cl-date">April 16, 2026</div>
+        <div class="cl-title">Pick locking (manual)</div>
+        <div class="cl-desc">Added a "Save &amp; lock picks" button so picks couldn't be changed after everyone had submitted. Validated that all players had a pick before allowing the lock.</div>
+      </div>
+    </div>
+    <div class="cl-entry">
+      <div class="cl-dot"></div>
+      <div class="cl-body">
+        <div class="cl-date">April 16, 2026</div>
+        <div class="cl-title">Scoring rules reference</div>
+        <div class="cl-desc">Added a Rules tab with the full 2026 Fieger Law scoring breakdown — offense, pitching, penalties, and the special lineup-doubler rule.</div>
+      </div>
+    </div>
+    <div class="cl-entry">
+      <div class="cl-dot"></div>
+      <div class="cl-body">
+        <div class="cl-date">April 16, 2026</div>
+        <div class="cl-title">Season leaderboard</div>
+        <div class="cl-desc">Added a leaderboard tab tracking cumulative season points for all players with medal rankings.</div>
+      </div>
+    </div>
+    <div class="cl-entry">
+      <div class="cl-dot origin"></div>
+      <div class="cl-body">
+        <div class="cl-date">April 16, 2026</div>
+        <div class="cl-title">Pick the Stick launched 🐯</div>
+        <div class="cl-desc">First version of the app built — daily player picker for the Detroit Tigers, point scoring based on Fieger Law rules, and a basic leaderboard. The project was born.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://kibnotnihptbjccqadue.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpYm5vdG5paHB0YmpjY3FhZHVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNzAzODIsImV4cCI6MjA5MTk0NjM4Mn0.R3uyVpSSvVW2ezu_c3ANoeCFHqQo-x6cIp0Mo2hwQCE';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const MLB_API = 'https://statsapi.mlb.com/api/v1';
+const TIGERS_ID = 116;
+
+let currentUser = null; // { id, username }
+let roster = [];
+let gameData = null;
+let myTodayPick = null; // player_name string or null
+let selectedPlayer = null; // currently highlighted in grid (unsaved)
+let authMode = 'login';
+
+// ── UTILS ──────────────────────────────────────────────────────────────────
+
+function getTodayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function simpleHash(str) {
+  // Simple deterministic hash for password storage (not cryptographic, but fine for a casual game)
+  let hash = 0;
+  for(let i = 0; i < str.length; i++) {
+    const chr = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + chr;
+    hash |= 0;
+  }
+  return 'h' + Math.abs(hash).toString(16) + str.length.toString(16);
+}
+
+function isGameLocked() {
+  if(!gameData) return false;
+  const status = gameData.status.toLowerCase();
+  const lockedStatuses = ['progress', 'final', 'game over', 'completed', 'delay', 'delayed', 'rain', 'suspended', 'warmup', 'pre-game'];
+  return lockedStatuses.some(s => status.includes(s));
+}
+
+// ── AUTH ───────────────────────────────────────────────────────────────────
+
+function showAuthTab(mode) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab').forEach((t,i) => {
+    t.classList.toggle('active', (i===0 && mode==='login') || (i===1 && mode==='signup'));
+  });
+  document.getElementById('auth-btn').textContent = mode === 'login' ? 'Log in' : 'Create account';
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+async function submitAuth() {
+  const username = document.getElementById('auth-username').value.trim().toLowerCase();
+  const password = document.getElementById('auth-password').value;
+  const errEl = document.getElementById('auth-error');
+  const btn = document.getElementById('auth-btn');
+  errEl.style.display = 'none';
+
+  if(!username || !password) { errEl.textContent = 'Please enter a username and password.'; errEl.style.display='block'; return; }
+  if(password.length < 4) { errEl.textContent = 'Password must be at least 4 characters.'; errEl.style.display='block'; return; }
+
+  btn.innerHTML = '<span class="spinner"></span>Loading...';
+  btn.disabled = true;
+
+  const hash = simpleHash(password);
+
+  if(authMode === 'signup') {
+    // Check username taken
+    const { data: existing } = await sb.from('players').select('id').eq('username', username).maybeSingle();
+    if(existing) { errEl.textContent = 'That username is already taken.'; errEl.style.display='block'; btn.textContent='Create account'; btn.disabled=false; return; }
+    const { data, error } = await sb.from('players').insert({ username, password_hash: hash }).select().single();
+    if(error) { errEl.textContent = 'Could not create account. Try again.'; errEl.style.display='block'; btn.textContent='Create account'; btn.disabled=false; return; }
+    currentUser = { id: data.id, username: data.username };
+  } else {
+    const { data, error } = await sb.from('players').select('*').eq('username', username).maybeSingle();
+    if(error || !data) { errEl.textContent = 'Username not found.'; errEl.style.display='block'; btn.textContent='Log in'; btn.disabled=false; return; }
+    if(data.password_hash !== hash) { errEl.textContent = 'Incorrect password.'; errEl.style.display='block'; btn.textContent='Log in'; btn.disabled=false; return; }
+    currentUser = { id: data.id, username: data.username };
+  }
+
+  try { localStorage.setItem('pts_user', JSON.stringify(currentUser)); } catch(e){}
+  await enterApp();
+}
+
+async function logout() {
+  currentUser = null;
+  try { localStorage.removeItem('pts_user'); } catch(e){}
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('auth-username').value = '';
+  document.getElementById('auth-password').value = '';
+  showAuthTab('login');
+}
+
+// ── APP ENTRY ──────────────────────────────────────────────────────────────
+
+async function enterApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'block';
+  document.getElementById('header-date').textContent = `Logged in as ${currentUser.username} · ${new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}`;
+
+  // Load in parallel
+  const [_, game] = await Promise.all([fetchRoster(), fetchTodayGame()]);
+  gameData = game;
+  await loadMyPick();
+  selectedPlayer = myTodayPick;
+
+  renderGameBanner(game, 'game-banner-picks');
+  renderPickStatusBanner();
+  renderPlayerGrid();
+  renderMyPickDisplay();
+}
+
+// ── MLB API ────────────────────────────────────────────────────────────────
+
+async function fetchRoster() {
+  try {
+    const r = await fetch(`${MLB_API}/teams/${TIGERS_ID}/roster?rosterType=active&season=2026`);
+    const d = await r.json();
+    roster = (d.roster||[]).map(p => ({ id: p.person.id, name: p.person.fullName, pos: p.position.abbreviation }));
+  } catch(e) { roster = []; }
+}
+
+async function fetchTodayGame() {
+  try {
+    const r = await fetch(`${MLB_API}/schedule?sportId=1&teamId=${TIGERS_ID}&date=${getTodayISO()}`);
+    const d = await r.json();
+    const games = d.dates?.[0]?.games||[];
+    if(!games.length) return null;
+    const g = games[0];
+    return { gamePk: g.gamePk, status: g.status.detailedState, away: g.teams.away.team.name, home: g.teams.home.team.name, awayScore: g.teams.away.score, homeScore: g.teams.home.score, gameDate: g.gameDate };
+  } catch(e) { return null; }
+}
+
+async function fetchBoxscore(gamePk) {
+  try { const r = await fetch(`${MLB_API}/game/${gamePk}/boxscore`); return await r.json(); } catch(e) { return null; }
+}
+
+// ── PICKS ──────────────────────────────────────────────────────────────────
+
+async function loadMyPick() {
+  const { data } = await sb.from('picks').select('player_name, locked').eq('player_id', currentUser.id).eq('pick_date', getTodayISO()).maybeSingle();
+  myTodayPick = data?.player_name || null;
+}
+
+function getLockedReason() {
+  if(!gameData) return 'game is locked.';
+  const s = gameData.status.toLowerCase();
+  if(s.includes('delay') || s.includes('rain')) return 'game is delayed.';
+  if(s.includes('suspended')) return 'game is suspended.';
+  if(s.includes('warmup') || s.includes('pre-game')) return 'game is about to start.';
+  return 'game has started.';
+}
+async function saveMyPick() {
+  if(isGameLocked()) { showToast("Picks are locked — " + getLockedReason()); return; }
+  if(!selectedPlayer) { showToast('Select a player first!'); return; }
+
+  const btn = document.getElementById('save-pick-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const { error } = await sb.from('picks').upsert({
+    player_id: currentUser.id,
+    pick_date: getTodayISO(),
+    player_name: selectedPlayer,
+    locked: false,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'player_id,pick_date' });
+
+  if(error) { showToast('Could not save pick. Try again.'); }
+  else {
+    myTodayPick = selectedPlayer;
+    showToast('Pick saved! You can change it until the game starts 🐯');
+    renderMyPickDisplay();
+    renderPickStatusBanner();
+  }
+  btn.disabled = false; btn.textContent = 'Save my pick';
+}
+
+// ── RENDER: PICKS TAB ──────────────────────────────────────────────────────
+
+function renderGameBanner(game, id) {
+  const el = document.getElementById(id);
+  if(!game) { el.innerHTML = ''; return; }
+  const isLive = game.status.toLowerCase().includes('progress');
+  const scoreText = (game.awayScore!=null && game.homeScore!=null) ? ` &nbsp;·&nbsp; ${game.awayScore}–${game.homeScore}` : '';
+  el.innerHTML = `<div class="game-banner">
+    <div>
+      <div class="game-matchup">${game.away} @ ${game.home}${scoreText}</div>
+      <div class="game-status ${isLive?'live':''}">${isLive ? '🟢 Live' : game.status}</div>
+    </div>
+    <button class="btn btn-sm" onclick="refreshGame()">Refresh</button>
+  </div>`;
+}
+
+function renderPickStatusBanner() {
+  const el = document.getElementById('pick-status-banner');
+  const saveRow = document.getElementById('pick-save-row');
+  if(isGameLocked()) {
+    el.innerHTML = `<div class="info-banner locked"><span style="font-size:16px">🔒</span><span>Picks are locked — ${gameData ? gameData.status : "game in progress"}. Check back after the game!</span></div>`;
+    saveRow.style.display = 'none';
+  } else {
+    el.innerHTML = `<div class="info-banner open"><span style="font-size:16px">✏️</span><span>Picks are open. You can change your pick until the game starts.</span></div>`;
+    saveRow.style.display = 'flex';
+  }
+}
+
+function renderMyPickDisplay() {
+  const el = document.getElementById('my-pick-display');
+  const badge = document.getElementById('pick-lock-badge');
+  if(myTodayPick) {
+    el.textContent = myTodayPick;
+    el.className = 'my-pick-name';
+    badge.innerHTML = isGameLocked() ? '<span style="font-size:20px">🔒</span>' : '<span style="font-size:11px;color:var(--text3)">saved</span>';
+  } else {
+    el.textContent = 'No pick yet';
+    el.className = 'my-pick-name none';
+    badge.innerHTML = '';
+  }
+}
+
+function renderPlayerGrid() {
+  const grid = document.getElementById('player-grid');
+  if(!roster.length) { grid.innerHTML = '<div class="error-msg">Could not load roster from MLB.</div>'; return; }
+  const locked = isGameLocked();
+  grid.innerHTML = '';
+  roster.forEach(p => {
+    const isSelected = p.name === (selectedPlayer || myTodayPick);
+    const div = document.createElement('div');
+    div.className = 'player-card' + (isSelected?' selected':'') + (locked?' locked':'');
+    div.innerHTML = `<div class="pname">${p.name}</div><div class="ppos">${p.pos}</div>`;
+    if(!locked) {
+      div.onclick = () => {
+        selectedPlayer = p.name;
+        renderPlayerGrid();
+        // update display optimistically
+        const dispEl = document.getElementById('my-pick-display');
+        dispEl.textContent = p.name;
+        dispEl.className = 'my-pick-name';
+      };
+    }
+    grid.appendChild(div);
+  });
+}
+
+// ── ALL PICKS TAB ──────────────────────────────────────────────────────────
+
+async function renderAllPicks() {
+  const list = document.getElementById('all-picks-list');
+  list.innerHTML = '<div class="loading">Loading...</div>';
+  const { data: picks } = await sb.from('picks').select('player_name, locked, players(username)').eq('pick_date', getTodayISO());
+  if(!picks || !picks.length) { list.innerHTML = '<div class="empty-msg">No picks made yet today.</div>'; return; }
+  const locked = isGameLocked();
+  list.innerHTML = '';
+  picks.forEach(p => {
+    const isMe = p.players.username === currentUser.username;
+    const div = document.createElement('div');
+    div.style.cssText = `display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg);border:1px solid ${isMe?'var(--tigers)':'var(--border)'};border-radius:var(--radius);margin-bottom:7px;${isMe?'box-shadow:0 0 0 2px rgba(250,70,22,0.1)':''}`;
+    div.innerHTML = `
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${p.players.username}${isMe?' <span style="font-size:11px;color:var(--tigers);font-weight:500">(you)</span>':''}</div>
+        <div style="font-size:13px;color:${locked||p.player_name?'var(--text2)':'var(--text3)'};margin-top:2px">${locked || isMe ? (p.player_name||'No pick') : '🔒 Hidden until game starts'}</div>
+      </div>
+      ${p.player_name ? '<span style="font-size:14px">✅</span>' : '<span style="font-size:14px">⏳</span>'}
+    `;
+    list.appendChild(div);
+  });
+}
+
+// ── STATS TAB ──────────────────────────────────────────────────────────────
+
+function calcPoints(stats, isPitcher, notInLineup) {
+  let pts = 0;
+  if(!isPitcher) {
+    const singles = (stats.hits||0)-(stats.doubles||0)-(stats.triples||0)-(stats.homeRuns||0);
+    pts += singles + (stats.doubles||0)*2 + (stats.triples||0)*3 + (stats.homeRuns||0)*4;
+    pts += (stats.runs||0) + (stats.rbi||0) + (stats.baseOnBalls||0) + (stats.stolenBases||0);
+    pts -= (stats.strikeOuts||0) + (stats.errors||0) + (stats.groundIntoDoublePlay||0)*2;
+  } else {
+    const full = Math.floor(parseFloat(stats.inningsPitched||0));
+    if(full >= 5) pts += 2 + (full - 5);
+    const so = stats.strikeOuts||0;
+    if(so > 5) pts += so - 5;
+  }
+  if(notInLineup) pts *= 2;
+  return pts;
+}
+
+async function renderStatsPanel() {
+  const content = document.getElementById('stats-content');
+  const actions = document.getElementById('stats-actions');
+  renderGameBanner(gameData, 'game-banner-stats');
+  if(!gameData) { content.innerHTML = '<div class="empty-msg">No Tigers game today.</div>'; actions.style.display='none'; return; }
+  content.innerHTML = '<div class="loading">Fetching live boxscore from MLB...</div>';
+  const box = await fetchBoxscore(gameData.gamePk);
+  if(!box) { content.innerHTML = '<div class="error-msg">Could not load boxscore. Game may not have started yet.</div>'; actions.style.display='none'; return; }
+
+  // Get all today's picks to highlight them
+  const { data: allPicks } = await sb.from('picks').select('player_name, players(username)').eq('pick_date', getTodayISO());
+  const pickedPlayers = new Set((allPicks||[]).map(p => p.player_name));
+  const pickedByMap = {};
+  (allPicks||[]).forEach(p => { if(p.player_name) pickedByMap[p.player_name] = p.players.username; });
+
+  const tigersSide = box.teams?.home?.team?.id === TIGERS_ID ? 'home' : 'away';
+  const team = box.teams?.[tigersSide];
+  if(!team) { content.innerHTML = '<div class="error-msg">Could not parse Tigers data.</div>'; actions.style.display='none'; return; }
+
+  const batters=team.batters||[], pitchers=team.pitchers||[], allPlayers=team.players||{};
+  const startingLineup = new Set((team.battingOrder||[]).map(id=>`ID${id}`));
+  window._boxPlayers = {};
+
+  let battingRows = '';
+  batters.forEach(pid => {
+    const key=`ID${pid}`, p=allPlayers[key]; if(!p) return;
+    const name=p.person.fullName, s=p.stats?.batting||{};
+    const inLineup=startingLineup.has(key), isPicked=pickedPlayers.has(name);
+    const pts=calcPoints(s, false, !inLineup&&isPicked);
+    window._boxPlayers[name]={stats:s, isPitcher:false, inLineup, pts};
+    const badge=pts>0?`<span class="pts-badge pts-pos">+${pts}</span>`:pts<0?`<span class="pts-badge pts-neg">${pts}</span>`:`<span class="pts-badge pts-zero">0</span>`;
+    const pickedBy = pickedByMap[name] ? `<span style="font-size:10px;color:var(--tigers);margin-left:4px">${pickedByMap[name]}</span>` : '';
+    battingRows+=`<tr class="${isPicked?'picked-row':''}"><td>${name}${pickedBy}</td><td>${s.hits||0}</td><td>${s.doubles||0}</td><td>${s.triples||0}</td><td>${s.homeRuns||0}</td><td>${s.runs||0}</td><td>${s.rbi||0}</td><td>${s.baseOnBalls||0}</td><td>${s.stolenBases||0}</td><td>${s.strikeOuts||0}</td><td>${badge}</td></tr>`;
+  });
+
+  let pitchingRows = '';
+  pitchers.forEach((pid,idx) => {
+    const key=`ID${pid}`, p=allPlayers[key]; if(!p) return;
+    const name=p.person.fullName, s=p.stats?.pitching||{};
+    const isStarter=idx===0, isPicked=pickedPlayers.has(name);
+    const pts=isStarter?calcPoints(s,true,false):0;
+    if(isStarter) window._boxPlayers[name]={stats:s, isPitcher:true, inLineup:true, pts};
+    const badge=pts>0?`<span class="pts-badge pts-pos">+${pts}</span>`:`<span class="pts-badge pts-zero">0</span>`;
+    const pickedBy = pickedByMap[name] ? `<span style="font-size:10px;color:var(--tigers);margin-left:4px">${pickedByMap[name]}</span>` : '';
+    pitchingRows+=`<tr class="${isPicked?'picked-row':''}"><td>${name}${pickedBy}${isStarter?' (SP)':' (RP)'}</td><td>${s.inningsPitched||0}</td><td>${s.strikeOuts||0}</td><td>${s.hits||0}</td><td>${s.runs||0}</td><td>${s.baseOnBalls||0}</td><td>${isStarter?badge:'—'}</td></tr>`;
+  });
+
+  const { data: applied } = await sb.from('season_scores').select('id').eq('player_id', currentUser.id).eq('score_date', getTodayISO()).maybeSingle();
+  const alreadyApplied = !!applied;
+
+  let html = alreadyApplied ? '<div class="success-msg">✓ Scores already applied for today.</div>' : '';
+  html += `<div style="margin-bottom:1.5rem"><div class="section-label" style="margin-bottom:8px">Batting</div><div class="overflow-x"><table class="stat-table"><thead><tr><th style="text-align:left">Player</th><th>H</th><th>2B</th><th>3B</th><th>HR</th><th>R</th><th>RBI</th><th>BB</th><th>SB</th><th>K</th><th>Pts</th></tr></thead><tbody>${battingRows||'<tr><td colspan="11" class="empty-msg">No batting data yet.</td></tr>'}</tbody></table></div></div>`;
+  html += `<div><div class="section-label" style="margin-bottom:8px">Pitching</div><div class="overflow-x"><table class="stat-table"><thead><tr><th style="text-align:left">Pitcher</th><th>IP</th><th>K</th><th>H</th><th>R</th><th>BB</th><th>Pts</th></tr></thead><tbody>${pitchingRows||'<tr><td colspan="7" class="empty-msg">No pitching data yet.</td></tr>'}</tbody></table></div></div>`;
+  content.innerHTML = html;
+  actions.style.display = alreadyApplied ? 'none' : 'flex';
+}
+
+async function applyStats() {
+  const today = getTodayISO();
+  const { data: alreadyApplied } = await sb.from('season_scores').select('id').eq('player_id', currentUser.id).eq('score_date', today).maybeSingle();
+  if(alreadyApplied) { showToast('Already applied today!'); return; }
+
+  const { data: allPicks } = await sb.from('picks').select('player_name, player_id, players(username)').eq('pick_date', today);
+  if(!allPicks?.length) { showToast('No picks found for today.'); return; }
+
+  let applied = 0;
+  for(const pick of allPicks) {
+    const pts = window._boxPlayers?.[pick.player_name]?.pts;
+    if(pts == null) continue;
+    await sb.from('season_scores').upsert({ player_id: pick.player_id, score_date: today, points: pts, mlb_player_name: pick.player_name }, { onConflict: 'player_id,score_date' });
+    applied++;
+  }
+  showToast(`Scores applied for ${applied} player${applied!==1?'s':''}!`);
+  document.getElementById('stats-actions').style.display = 'none';
+  renderStatsPanel();
+}
+
+// ── LEADERBOARD ────────────────────────────────────────────────────────────
+
+async function renderLeaderboard() {
+  const list = document.getElementById('lb-list');
+  list.innerHTML = '<div class="loading">Loading standings...</div>';
+
+  const { data: players } = await sb.from('players').select('id, username');
+  const { data: scores } = await sb.from('season_scores').select('player_id, points');
+  const { data: todayPicks } = await sb.from('picks').select('player_id, player_name').eq('pick_date', getTodayISO());
+
+  if(!players?.length) { list.innerHTML = '<div class="empty-msg">No players yet.</div>'; return; }
+
+  const totals = {};
+  players.forEach(p => { totals[p.id] = { username: p.username, pts: 0 }; });
+  (scores||[]).forEach(s => { if(totals[s.player_id]) totals[s.player_id].pts += s.points; });
+  const pickMap = {};
+  (todayPicks||[]).forEach(p => { pickMap[p.player_id] = p.player_name; });
+
+  const entries = Object.values(totals).sort((a,b) => b.pts - a.pts);
+  list.innerHTML = '';
+  const medals = ['🥇','🥈','🥉'];
+  entries.forEach((e, i) => {
+    const isMe = e.username === currentUser.username;
+    const todayPick = pickMap[players.find(p=>p.username===e.username)?.id];
+    const div = document.createElement('div');
+    div.className = 'lb-row' + (isMe?' is-me':'');
+    div.innerHTML = `<div class="lb-rank">${medals[i]||i+1}</div>
+      <div>
+        <div class="lb-name">${e.username}${isMe?'<span class="you">you</span>':''}</div>
+        ${todayPick&&(isGameLocked()||isMe) ? `<div class="lb-pick">Today: ${todayPick}</div>` : ''}
+      </div>
+      <div class="lb-pts">${e.pts} <span>pts</span></div>`;
+    list.appendChild(div);
+  });
+}
+
+// ── TAB SWITCHING ──────────────────────────────────────────────────────────
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+  if(name==='stats') renderStatsPanel();
+  if(name==='leaderboard') renderLeaderboard();
+  if(name==='allpicks') renderAllPicks();
+}
+
+async function refreshGame() {
+  showToast('Refreshing...');
+  gameData = await fetchTodayGame();
+  renderGameBanner(gameData, 'game-banner-picks');
+  renderGameBanner(gameData, 'game-banner-stats');
+  renderPickStatusBanner();
+  renderPlayerGrid();
+}
+
+// ── BOOT ───────────────────────────────────────────────────────────────────
+
+async function boot() {
+  try {
+    const saved = localStorage.getItem('pts_user');
+    if(saved) {
+      const u = JSON.parse(saved);
+      // verify user still exists
+      const { data } = await sb.from('players').select('id,username').eq('id', u.id).maybeSingle();
+      if(data) { currentUser = { id: data.id, username: data.username }; await enterApp(); return; }
+    }
+  } catch(e) {}
+  document.getElementById('auth-screen').style.display = 'flex';
+}
+
+boot();
+</script>
+</body>
+</html>
