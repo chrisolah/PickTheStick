@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pick the Stick — Detroit Tigers</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #ffffff;
+      --bg2: #f5f5f3;
+      --bg3: #eeede9;
+      --text: #1a1a18;
+      --text2: #6b6b67;
+      --text3: #9a9a96;
+      --border: rgba(0,0,0,0.12);
+      --border2: rgba(0,0,0,0.22);
+      --radius: 8px;
+      --radius-lg: 12px;
+      --tigers: #FA4616;
+      --tigers-dark: #c93710;
+      --green-bg: #EAF3DE;
+      --green-text: #27500A;
+      --red-bg: #FCEBEB;
+      --red-text: #791F1F;
+      --gold: #BA7517;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1a;
+        --bg2: #252523;
+        --bg3: #2e2e2b;
+        --text: #f0efe9;
+        --text2: #a8a8a3;
+        --text3: #6b6b67;
+        --border: rgba(255,255,255,0.1);
+        --border2: rgba(255,255,255,0.2);
+        --green-bg: #173404;
+        --green-text: #C0DD97;
+        --red-bg: #501313;
+        --red-text: #F7C1C1;
+      }
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); min-height: 100vh; }
+    .app { max-width: 720px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+    .header { display: flex; align-items: center; gap: 14px; margin-bottom: 1.75rem; }
+    .tiger-icon { width: 44px; height: 44px; background: var(--tigers); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(250,70,22,0.3); }
+    .header h1 { font-size: 22px; font-weight: 600; color: var(--text); letter-spacing: -0.02em; }
+    .header p { font-size: 13px; color: var(--text2); margin-top: 1px; }
+    .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; }
+    .tab { padding: 9px 16px; font-size: 13px; font-weight: 500; color: var(--text2); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--tigers); border-bottom-color: var(--tigers); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .section-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; }
+    .card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 10px; }
+    .game-banner { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .game-matchup { font-size: 15px; font-weight: 600; color: var(--text); }
+    .game-status { font-size: 12px; color: var(--text2); margin-top: 3px; }
+    .game-status.live { color: #3B6D11; font-weight: 600; }
+    .player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 1.5rem; }
+    .player-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 13px; cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s; }
+    .player-card:hover { border-color: var(--border2); }
+    .player-card.selected { border: 2px solid var(--tigers); box-shadow: 0 0 0 3px rgba(250,70,22,0.1); }
+    .player-card .pname { font-size: 13px; font-weight: 600; color: var(--text); }
+    .player-card .ppos { font-size: 11px; color: var(--text2); margin-top: 2px; }
+    .picker-row { display: flex; align-items: center; gap: 12px; padding: 11px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 7px; cursor: pointer; transition: border-color 0.12s; }
+    .picker-row.active-picker { border: 2px solid var(--tigers); }
+    .picker-name { font-size: 13px; font-weight: 600; color: var(--text); min-width: 90px; }
+    .picker-pick { font-size: 13px; color: var(--text2); flex: 1; }
+    .picker-pick.has-pick { color: var(--tigers); font-weight: 500; }
+    .add-row { display: flex; gap: 8px; margin-top: 10px; }
+    .add-row input, input[type="text"] { flex: 1; padding: 9px 13px; font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); outline: none; }
+    .add-row input:focus { border-color: var(--tigers); box-shadow: 0 0 0 3px rgba(250,70,22,0.12); }
+    .btn { padding: 9px 18px; font-size: 13px; font-weight: 500; border: 1px solid var(--border2); border-radius: var(--radius); background: transparent; cursor: pointer; color: var(--text); transition: background 0.1s; }
+    .btn:hover { background: var(--bg2); }
+    .btn-primary { background: var(--tigers); color: white; border-color: var(--tigers); }
+    .btn-primary:hover { background: var(--tigers-dark); border-color: var(--tigers-dark); }
+    .btn-sm { padding: 6px 13px; font-size: 12px; }
+    .inline-btns { display: flex; gap: 8px; margin-top: 1.25rem; flex-wrap: wrap; }
+    .stat-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .stat-table th { font-size: 11px; font-weight: 600; color: var(--text3); text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+    .stat-table th:first-child { text-align: left; }
+    .stat-table td { padding: 8px 8px; text-align: right; color: var(--text); border-bottom: 1px solid var(--border); }
+    .stat-table td:first-child { text-align: left; font-weight: 500; }
+    .stat-table tr:last-child td { border-bottom: none; }
+    .stat-table tr.picked-row td { background: rgba(250,70,22,0.05); }
+    .pts-badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .pts-pos { background: var(--green-bg); color: var(--green-text); }
+    .pts-neg { background: var(--red-bg); color: var(--red-text); }
+    .pts-zero { background: var(--bg2); color: var(--text3); }
+    .lb-row { display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 8px; }
+    .lb-rank { font-size: 20px; min-width: 32px; }
+    .lb-name { flex: 1; font-size: 15px; font-weight: 600; color: var(--text); }
+    .lb-pts { font-size: 18px; font-weight: 600; color: var(--text); }
+    .lb-pts span { font-size: 12px; font-weight: 400; color: var(--text2); }
+    .scoring-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1.25rem; }
+    .score-row { display: flex; justify-content: space-between; padding: 7px 13px; background: var(--bg2); border-radius: var(--radius); font-size: 13px; }
+    .score-label { color: var(--text2); }
+    .score-val { font-weight: 600; }
+    .score-val.pos { color: var(--green-text); }
+    .score-val.neg { color: var(--red-text); }
+    .score-val.special { color: var(--gold); }
+    .loading { text-align: center; padding: 2.5rem; font-size: 13px; color: var(--text2); }
+    .error-msg { background: var(--red-bg); color: var(--red-text); border-radius: var(--radius); padding: 11px 15px; font-size: 13px; margin-bottom: 1rem; }
+    .empty-msg { text-align: center; padding: 2rem; font-size: 13px; color: var(--text2); }
+    .toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); border-radius: var(--radius); padding: 10px 20px; font-size: 13px; font-weight: 500; opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 999; white-space: nowrap; }
+    .toast.show { opacity: 1; }
+    .overflow-x { overflow-x: auto; }
+    @media (max-width: 480px) {
+      .scoring-grid { grid-template-columns: 1fr; }
+      .player-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="tiger-icon">🐯</div>
+    <div>
+      <h1>Pick the stick</h1>
+      <p id="header-date">2026 Detroit Tigers — Fieger Law Edition</p>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('picks',this)">Daily picks</button>
+    <button class="tab" onclick="switchTab('stats',this)">Game stats</button>
+    <button class="tab" onclick="switchTab('leaderboard',this)">Leaderboard</button>
+    <button class="tab" onclick="switchTab('rules',this)">Scoring rules</button>
+  </div>
+
+  <!-- PICKS -->
+  <div id="panel-picks" class="panel active">
+    <div id="game-banner-picks"></div>
+    <div class="section-label">Choose a Tigers player</div>
+    <div id="player-grid" class="player-grid"><div class="loading">Loading Tigers roster from MLB...</div></div>
+    <div class="section-label">Who's picking today</div>
+    <div id="pickers-list"></div>
+    <div class="add-row">
+      <input type="text" id="new-picker" placeholder="Add a friend's name..." onkeydown="if(event.key==='Enter')addPicker()" />
+      <button class="btn" onclick="addPicker()">Add</button>
+    </div>
+    <div class="inline-btns">
+      <button class="btn btn-primary" onclick="savePicks()">Save today's picks</button>
+      <button class="btn" onclick="clearTodayPicks()">Clear picks</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div id="panel-stats" class="panel">
+    <div id="game-banner-stats"></div>
+    <div id="stats-content"><div class="loading">Loading game data from MLB...</div></div>
+    <div class="inline-btns" id="stats-actions" style="display:none">
+      <button class="btn btn-primary" onclick="applyStats()">Apply stats to scores</button>
+      <button class="btn" onclick="renderStatsPanel()">Refresh stats</button>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div id="panel-leaderboard" class="panel">
+    <div class="section-label">Season standings</div>
+    <div id="lb-list"></div>
+    <div class="inline-btns" style="margin-top:1.5rem">
+      <button class="btn" onclick="if(confirm('Reset all season scores?')){state.seasonScores={};state.appliedDates=[];persist();renderLeaderboard();showToast('Scores reset')}">Reset season scores</button>
+    </div>
+  </div>
+
+  <!-- RULES -->
+  <div id="panel-rules" class="panel">
+    <div class="section-label">Offense</div>
+    <div class="scoring-grid">
+      <div class="score-row"><span class="score-label">Single</span><span class="score-val pos">+1 pt</span></div>
+      <div class="score-row"><span class="score-label">Double</span><span class="score-val pos">+2 pts</span></div>
+      <div class="score-row"><span class="score-label">Triple</span><span class="score-val pos">+3 pts</span></div>
+      <div class="score-row"><span class="score-label">Home run</span><span class="score-val pos">+4 pts</span></div>
+      <div class="score-row"><span class="score-label">Run scored</span><span class="score-val pos">+1 pt</span></div>
+      <div class="score-row"><span class="score-label">RBI</span><span class="score-val pos">+1 pt</span></div>
+      <div class="score-row"><span class="score-label">Walk (1B equiv)</span><span class="score-val pos">+1 pt</span></div>
+      <div class="score-row"><span class="score-label">Stolen base</span><span class="score-val pos">+1 pt</span></div>
+    </div>
+    <div class="section-label">Starting pitcher</div>
+    <div class="scoring-grid">
+      <div class="score-row"><span class="score-label">5+ innings pitched</span><span class="score-val pos">+2 pts</span></div>
+      <div class="score-row"><span class="score-label">Each extra inning</span><span class="score-val pos">+1 pt</span></div>
+      <div class="score-row"><span class="score-label">Strikeouts after 5th</span><span class="score-val pos">+1 pt</span></div>
+    </div>
+    <div class="section-label">Penalties</div>
+    <div class="scoring-grid">
+      <div class="score-row"><span class="score-label">Strikeout (batter)</span><span class="score-val neg">−1 pt</span></div>
+      <div class="score-row"><span class="score-label">Fielding error</span><span class="score-val neg">−1 pt</span></div>
+      <div class="score-row"><span class="score-label">Ground into DP</span><span class="score-val neg">−2 pts</span></div>
+    </div>
+    <div class="section-label">Special rule</div>
+    <div class="score-row"><span class="score-label">Player not in starting lineup</span><span class="score-val special">Points ×2</span></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MLB_API = 'https://statsapi.mlb.com/api/v1';
+const TIGERS_ID = 116;
+
+let state = {
+  pickerNames: [],
+  todayPicks: {},
+  seasonScores: {},
+  gameData: null,
+  roster: [],
+  appliedDates: []
+};
+
+// Load persisted state
+try { const s = localStorage.getItem('pts_v1'); if(s) state = {...state, ...JSON.parse(s)}; } catch(e){}
+function persist() { try { localStorage.setItem('pts_v1', JSON.stringify(state)); } catch(e){} }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function getTodayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function getTodayDisplay() {
+  return new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+}
+
+let activePicker = 0;
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+  if(name==='stats') renderStatsPanel();
+  if(name==='leaderboard') renderLeaderboard();
+}
+
+async function fetchRoster() {
+  try {
+    const r = await fetch(`${MLB_API}/teams/${TIGERS_ID}/roster?rosterType=active&season=2026`);
+    const d = await r.json();
+    state.roster = (d.roster||[]).map(p => ({
+      id: p.person.id,
+      name: p.person.fullName,
+      pos: p.position.abbreviation
+    }));
+    persist();
+  } catch(e) { state.roster = []; }
+}
+
+async function fetchTodayGame() {
+  try {
+    const r = await fetch(`${MLB_API}/schedule?sportId=1&teamId=${TIGERS_ID}&date=${getTodayISO()}`);
+    const d = await r.json();
+    const games = d.dates?.[0]?.games||[];
+    if(!games.length) return null;
+    const g = games[0];
+    return {
+      gamePk: g.gamePk,
+      status: g.status.detailedState,
+      away: g.teams.away.team.name,
+      home: g.teams.home.team.name,
+      awayScore: g.teams.away.score,
+      homeScore: g.teams.home.score
+    };
+  } catch(e) { return null; }
+}
+
+async function fetchBoxscore(gamePk) {
+  try {
+    const r = await fetch(`${MLB_API}/game/${gamePk}/boxscore`);
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+function calcPoints(stats, isPitcher, notInLineup) {
+  let pts = 0;
+  if(!isPitcher) {
+    const singles = (stats.hits||0)-(stats.doubles||0)-(stats.triples||0)-(stats.homeRuns||0);
+    pts += singles + (stats.doubles||0)*2 + (stats.triples||0)*3 + (stats.homeRuns||0)*4;
+    pts += (stats.runs||0) + (stats.rbi||0) + (stats.baseOnBalls||0) + (stats.stolenBases||0);
+    pts -= (stats.strikeOuts||0) + (stats.errors||0) + (stats.groundIntoDoublePlay||0)*2;
+  } else {
+    const ip = parseFloat(stats.inningsPitched||0);
+    const full = Math.floor(ip);
+    if(full >= 5) { pts += 2 + (full - 5); }
+    const so = stats.strikeOuts||0;
+    if(so > 5) pts += so - 5;
+  }
+  if(notInLineup) pts *= 2;
+  return pts;
+}
+
+function renderGameBanner(game, id) {
+  const el = document.getElementById(id);
+  if(!game) {
+    el.innerHTML = `<div class="card" style="text-align:center;color:var(--text2);font-size:13px">No Tigers game today. Check back tomorrow!</div>`;
+    return;
+  }
+  const isLive = game.status.toLowerCase().includes('progress');
+  const scoreText = (game.awayScore!=null && game.homeScore!=null) ? ` &nbsp;·&nbsp; ${game.awayScore}–${game.homeScore}` : '';
+  el.innerHTML = `<div class="game-banner">
+    <div>
+      <div class="game-matchup">${game.away} @ ${game.home}${scoreText}</div>
+      <div class="game-status ${isLive?'live':''}">${isLive ? '🟢 Live' : game.status}</div>
+    </div>
+    <button class="btn btn-sm" onclick="refreshGame()">Refresh</button>
+  </div>`;
+}
+
+async function init() {
+  document.getElementById('header-date').textContent = getTodayDisplay();
+  await fetchRoster();
+  renderPlayerGrid();
+  renderPickers();
+  const game = await fetchTodayGame();
+  state.gameData = game;
+  persist();
+  renderGameBanner(game, 'game-banner-picks');
+}
+
+function renderPlayerGrid() {
+  const grid = document.getElementById('player-grid');
+  if(!state.roster.length) {
+    grid.innerHTML = '<div class="error-msg">Could not load roster from MLB. Check your connection and refresh.</div>';
+    return;
+  }
+  const currentPick = state.pickerNames[activePicker] ? state.todayPicks[state.pickerNames[activePicker]] : null;
+  grid.innerHTML = '';
+  state.roster.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'player-card' + (p.name===currentPick?' selected':'');
+    div.innerHTML = `<div class="pname">${p.name}</div><div class="ppos">${p.pos}</div>`;
+    div.onclick = () => {
+      if(!state.pickerNames.length) { showToast('Add a friend first!'); return; }
+      state.todayPicks[state.pickerNames[activePicker]] = p.name;
+      persist();
+      renderPlayerGrid();
+      renderPickers();
+    };
+    grid.appendChild(div);
+  });
+}
+
+function renderPickers() {
+  const list = document.getElementById('pickers-list');
+  if(!state.pickerNames.length) {
+    list.innerHTML = '<p style="font-size:13px;color:var(--text2);margin-bottom:10px">Add your friends below to get started.</p>';
+    return;
+  }
+  list.innerHTML = '';
+  state.pickerNames.forEach((name, i) => {
+    const pick = state.todayPicks[name];
+    const div = document.createElement('div');
+    div.className = 'picker-row' + (activePicker===i?' active-picker':'');
+    div.onclick = () => { activePicker=i; renderPickers(); renderPlayerGrid(); };
+    div.innerHTML = `<div class="picker-name">${name}</div>
+      <div class="picker-pick ${pick?'has-pick':''}">${pick||'Click to assign a pick'}</div>`;
+    list.appendChild(div);
+  });
+}
+
+function addPicker() {
+  const inp = document.getElementById('new-picker');
+  const name = inp.value.trim();
+  if(!name || state.pickerNames.includes(name)) { inp.value=''; return; }
+  state.pickerNames.push(name);
+  if(!state.seasonScores[name]) state.seasonScores[name] = 0;
+  persist();
+  renderPickers();
+  inp.value = '';
+}
+
+function savePicks() { persist(); showToast('Picks saved!'); }
+
+function clearTodayPicks() {
+  if(!confirm('Clear all picks for today?')) return;
+  state.todayPicks = {};
+  persist();
+  renderPickers();
+  renderPlayerGrid();
+  showToast('Picks cleared');
+}
+
+async function refreshGame() {
+  showToast('Refreshing...');
+  const game = await fetchTodayGame();
+  state.gameData = game;
+  persist();
+  renderGameBanner(game, 'game-banner-picks');
+  renderGameBanner(game, 'game-banner-stats');
+}
+
+async function renderStatsPanel() {
+  const content = document.getElementById('stats-content');
+  const actions = document.getElementById('stats-actions');
+  renderGameBanner(state.gameData, 'game-banner-stats');
+  if(!state.gameData) {
+    content.innerHTML = '<div class="empty-msg">No Tigers game today. Stats will appear here once a game is played.</div>';
+    actions.style.display = 'none';
+    return;
+  }
+  content.innerHTML = '<div class="loading">Fetching live boxscore from MLB...</div>';
+  const box = await fetchBoxscore(state.gameData.gamePk);
+  if(!box) {
+    content.innerHTML = '<div class="error-msg">Could not load boxscore. The game may not have started yet.</div>';
+    actions.style.display = 'none';
+    return;
+  }
+  const pickedPlayers = new Set(Object.values(state.todayPicks));
+  const tigersSide = box.teams?.home?.team?.id===TIGERS_ID ? 'home' : 'away';
+  const team = box.teams?.[tigersSide];
+  if(!team) {
+    content.innerHTML = '<div class="error-msg">Could not parse Tigers data from boxscore.</div>';
+    actions.style.display = 'none';
+    return;
+  }
+  const batters = team.batters||[];
+  const pitchers = team.pitchers||[];
+  const allPlayers = team.players||{};
+  const startingLineup = new Set((team.battingOrder||[]).map(id=>`ID${id}`));
+  window._boxPlayers = {};
+
+  let battingRows = '';
+  batters.forEach(pid => {
+    const key = `ID${pid}`;
+    const p = allPlayers[key]; if(!p) return;
+    const name = p.person.fullName;
+    const s = p.stats?.batting||{};
+    const inLineup = startingLineup.has(key);
+    const isPicked = pickedPlayers.has(name);
+    const pts = calcPoints(s, false, !inLineup && isPicked);
+    window._boxPlayers[name] = {stats:s, isPitcher:false, inLineup, pts};
+    const badge = pts>0?`<span class="pts-badge pts-pos">+${pts}</span>`:pts<0?`<span class="pts-badge pts-neg">${pts}</span>`:`<span class="pts-badge pts-zero">0</span>`;
+    battingRows += `<tr class="${isPicked?'picked-row':''}">
+      <td>${name}${isPicked?' 📌':''}</td>
+      <td>${s.hits||0}</td><td>${s.doubles||0}</td><td>${s.triples||0}</td><td>${s.homeRuns||0}</td>
+      <td>${s.runs||0}</td><td>${s.rbi||0}</td><td>${s.baseOnBalls||0}</td>
+      <td>${s.stolenBases||0}</td><td>${s.strikeOuts||0}</td><td>${badge}</td>
+    </tr>`;
+  });
+
+  let pitchingRows = '';
+  pitchers.forEach((pid, idx) => {
+    const key = `ID${pid}`;
+    const p = allPlayers[key]; if(!p) return;
+    const name = p.person.fullName;
+    const s = p.stats?.pitching||{};
+    const isStarter = idx===0;
+    const isPicked = pickedPlayers.has(name);
+    const pts = isStarter ? calcPoints(s, true, false) : 0;
+    if(isStarter) window._boxPlayers[name] = {stats:s, isPitcher:true, inLineup:true, pts};
+    const badge = pts>0?`<span class="pts-badge pts-pos">+${pts}</span>`:`<span class="pts-badge pts-zero">0</span>`;
+    pitchingRows += `<tr class="${isPicked?'picked-row':''}">
+      <td>${name}${isPicked?' 📌':''}${isStarter?' (SP)':' (RP)'}</td>
+      <td>${s.inningsPitched||0}</td><td>${s.strikeOuts||0}</td>
+      <td>${s.hits||0}</td><td>${s.runs||0}</td><td>${s.baseOnBalls||0}</td>
+      <td>${isStarter?badge:'—'}</td>
+    </tr>`;
+  });
+
+  const today = getTodayISO();
+  const alreadyApplied = state.appliedDates.includes(today);
+  if(alreadyApplied) {
+    content.innerHTML = `<div style="background:var(--green-bg);color:var(--green-text);border-radius:var(--radius);padding:11px 15px;font-size:13px;margin-bottom:1rem;font-weight:500">✓ Scores already applied for today.</div>`;
+  }
+
+  content.innerHTML += `
+    <div style="margin-bottom:1.5rem">
+      <div class="section-label" style="margin-bottom:8px">Batting</div>
+      <div class="overflow-x">
+        <table class="stat-table">
+          <thead><tr>
+            <th style="text-align:left">Player</th>
+            <th>H</th><th>2B</th><th>3B</th><th>HR</th>
+            <th>R</th><th>RBI</th><th>BB</th><th>SB</th><th>K</th><th>Pts</th>
+          </tr></thead>
+          <tbody>${battingRows||'<tr><td colspan="11" class="empty-msg">No batting data yet — game may not have started.</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="section-label" style="margin-bottom:8px">Pitching</div>
+      <div class="overflow-x">
+        <table class="stat-table">
+          <thead><tr>
+            <th style="text-align:left">Pitcher</th>
+            <th>IP</th><th>K</th><th>H</th><th>R</th><th>BB</th><th>Pts</th>
+          </tr></thead>
+          <tbody>${pitchingRows||'<tr><td colspan="7" class="empty-msg">No pitching data yet.</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+  actions.style.display = alreadyApplied ? 'none' : 'flex';
+}
+
+function applyStats() {
+  const today = getTodayISO();
+  if(state.appliedDates.includes(today)) { showToast('Already applied today!'); return; }
+  let applied = 0;
+  state.pickerNames.forEach(picker => {
+    const pick = state.todayPicks[picker];
+    if(!pick || window._boxPlayers?.[pick]==null) return;
+    const pts = window._boxPlayers[pick].pts;
+    state.seasonScores[picker] = (state.seasonScores[picker]||0) + pts;
+    applied++;
+  });
+  if(applied) {
+    state.appliedDates.push(today);
+    state.todayPicks = {};
+    persist();
+    showToast(`Scores applied for ${applied} player${applied>1?'s':''}!`);
+    document.getElementById('stats-actions').style.display = 'none';
+  } else {
+    showToast('No matching picks found in boxscore.');
+  }
+}
+
+function renderLeaderboard() {
+  const list = document.getElementById('lb-list');
+  if(!state.pickerNames.length) {
+    list.innerHTML = '<div class="empty-msg">Add friends in the Daily Picks tab to see standings here.</div>';
+    return;
+  }
+  const entries = state.pickerNames.map(n => ({name:n, pts:state.seasonScores[n]||0}));
+  entries.sort((a,b) => b.pts-a.pts);
+  list.innerHTML = '';
+  const medals = ['🥇','🥈','🥉'];
+  entries.forEach((e,i) => {
+    const div = document.createElement('div');
+    div.className = 'lb-row';
+    div.innerHTML = `<div class="lb-rank">${medals[i]||i+1}</div>
+      <div class="lb-name">${e.name}</div>
+      <div class="lb-pts">${e.pts} <span>pts</span></div>`;
+    list.appendChild(div);
+  });
+}
+
+init();
+</script>
+</body>
+</html>
